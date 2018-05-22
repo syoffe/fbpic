@@ -41,8 +41,11 @@ class ProbeFieldDiagnostic(FieldDiagnostic):
         z0_planes: list
             List of initial positions of the planes (in meters)
 
-        tmin, tmax: float (in seconds)
-            Time between which the fields will be collected
+        tmin: float (in seconds)
+            Time at which the planes start moving and recording the fields
+
+        tmax: float (in seconds)
+            Time at which the planes stop moving and recording the fields
 
         v_planes: float
             Velocity of the planes (in meters per second)
@@ -79,7 +82,7 @@ class ProbeFieldDiagnostic(FieldDiagnostic):
             self.probes.append( probe )
             # Initialize a corresponding empty file
             self.create_file_empty_meshes( probe.filename, i, tmin,
-                Nz, z0_planes[i] + v_planes*tmin, dz_slice, 0 )
+                Nz, z0_planes[i], dz_slice, 0 )
 
         # Create a slice handler, which will do all the extraction
         # for each slice to be registered in a FieldProbe
@@ -135,7 +138,8 @@ class ProbeFieldDiagnostic(FieldDiagnostic):
         for probe in self.probes:
 
             # Update the positions of the probe slice
-            probe.update_current_output_positions( time )
+            if (time > self.tmin) and (time < self.tmax):
+                probe.update_current_output_positions( time )
 
             if ( (time > self.tmin) and (time < self.tmax) and \
                 (probe.current_z > zmin) and (probe.current_z < zmax) ):
@@ -380,7 +384,7 @@ class FieldProbe:
         time: float (seconds)
             Time of the current iteration
         """
-        self.current_z = self.z0 + self.v*time
+        self.current_z = self.z0 + self.v*(time - self.tmin)
 
     def register_slice( self, dt ):
         """
@@ -394,7 +398,7 @@ class FieldProbe:
             Time step
         """
         # Find the index of the slice
-        iz = int( round(((self.current_z - self.z0)/self.v - self.tmin)/dt) )
+        iz = int( round((self.current_z - self.z0)/(self.v*dt)) )
 
         # Store the array and the index
         self.buffer_z_indices.append( iz )
